@@ -43,7 +43,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-mongoose.connect('mongodb://127.0.0.1:27017/test')
+mongoose.connect('mongodb+srv://nick:rLpYsP715WbQde6z@lyocdb.4fsnzsx.mongodb.net/')
   .then(() => console.log('Connected!'));
 
 const userSchema = new mongoose.Schema({
@@ -126,18 +126,51 @@ app.get('/webhook', async (req, res) => {
     res.status(200).send('Data saved from webhook');
 })
 
+const keySchema = new mongoose.Schema({
+    apiKey: String
+});
+
+// make simple mongoose post call to create API key
+
+app.post('/key', async (req, res) => {
+    const Key = mongoose.model('key', keySchema);
+
+    const key = new Key({ apiKey: '' });
+    try {
+        await key.save();
+    } catch (e){
+        console.log(e)
+        res.sendStatus(401);
+    }
+    res.status(200).send('Key written');
+
+    // find each person with a last name matching 'Ghost', selecting the `name` and `occupation` fields
+    // const person = await Key.findOne({ 'name.last': 'Ghost' }, 'name occupation');
+    // // Prints "Space Ghost is a talk show host".
+    // console.log('%s %s is a %s.', person.name.first, person.name.last, person.occupation);
+});
+
 app.get('/dashboard', async (req, res) => {
 
     const { api_key } = req.query;
+    console.log("api_key");
+    console.log(api_key);
 
-    if( ! api_key in database){
+    const Key = mongoose.model('key', keySchema);
+    const key = await Key.find({ 'apiKey': api_key });
+    console.log("key")
+    console.log(key);
+
+    if( !key ){
         return;
     }
 
-    get all entries from site creation till now
-    aggregate all of generation and use from site creation
+    // 'api_key': 'FWjvMXE:N!NBUe-#w@dR&DGYpP{nmEFc7jw!!?-+:r1B3&e+tq'
 
-    get all from today, figure out top user for power generation at present and top consumer
+    // get all entries from site creation till now
+    // aggregate all of generation and use from site creation
+
+    // get all from today, figure out top user for power generation at present and top consumer
 
     // i will store user data by 
     
@@ -148,7 +181,8 @@ app.get('/dashboard', async (req, res) => {
     // get sum of all power generated and spent from TS of site creation (sum of all entries)
 
     // list of TOP 5 USERS ('just most recent for MVP') for both POWER GENERATION AND USE
-}
+    res.status(200).send('Key found');
+});
 
 // add user to db with hashed password, send email with nodemailer from cpanel
 // app.get('/register', async (req, res) => { // TODO change to 

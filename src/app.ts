@@ -32,6 +32,7 @@ import mongoose, { createConnection, now } from 'mongoose';
 const app = express();
 const port = process.env.PORT || 3456;
 const JWT_SECRET = process.env.JWT_SECRET || 'secrets_secrets_are_no_fun';
+const MONGO_STRING = process.env.MONGO_STRING || '';
 
 app.use(cors({
     allowedHeaders: '*',
@@ -43,7 +44,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-mongoose.connect('mongodb+srv://nick:rLpYsP715WbQde6z@lyocdb.4fsnzsx.mongodb.net/')
+mongoose.connect(MONGO_STRING)
   .then(() => console.log('Connected!'));
 
 const userSchema = new mongoose.Schema({
@@ -151,7 +152,7 @@ app.post('/key', async (req, res) => {
 });
 
 // create 'insertMany' (if in mongoose) from JSON of downloaded data
-
+// OR python call can do a bunch of calls for upload 
 app.post('/upload', async (req, res) => {
     const { production, consumption, storage, timestamp } = req.body;
     const user_id = 1;
@@ -186,7 +187,7 @@ app.get('/dashboard', async (req, res) => {
 
     // worker to scrape data at some point, 1 to multiple times per day
     // download from sun service to grab data to ram to upload from service
-    
+
     // dashboard html (xml?) element to display data on forum main page via api key
 
 

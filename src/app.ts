@@ -165,7 +165,16 @@ app.get('/dashboard', async (req, res) => {
         return;
     }
 
-    // 'api_key': 'FWjvMXE:N!NBUe-#w@dR&DGYpP{nmEFc7jw!!?-+:r1B3&e+tq'
+    // get data dump for dad
+
+    // launch this app
+
+    // worker to scrape data at some point, 1 to multiple times per day
+    // download from sun service to grab data to ram to upload from service
+    
+    // dashboard html (xml?) element to display data on forum main page via api key
+
+
 
     // get all entries from site creation till now
     // aggregate all of generation and use from site creation

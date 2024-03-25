@@ -150,6 +150,21 @@ app.post('/key', async (req, res) => {
     // console.log('%s %s is a %s.', person.name.first, person.name.last, person.occupation);
 });
 
+// create 'insertMany' (if in mongoose) from JSON of downloaded data
+
+app.post('/upload', async (req, res) => {
+    const { production, consumption, storage, timestamp } = req.body;
+    const user_id = 1;
+    const power = new Power({ user_id, userame: 'admin', production, consumption, storage, timestamp });
+    try {
+        await power.save();
+    } catch (e){
+        console.log(e)
+        res.sendStatus(401);
+    }
+    res.status(200).send('Data saved from webhook');
+});
+
 app.get('/dashboard', async (req, res) => {
 
     const { api_key } = req.query;
@@ -192,44 +207,6 @@ app.get('/dashboard', async (req, res) => {
     // list of TOP 5 USERS ('just most recent for MVP') for both POWER GENERATION AND USE
     res.status(200).send('Key found');
 });
-
-// add user to db with hashed password, send email with nodemailer from cpanel
-// app.get('/register', async (req, res) => { // TODO change to 
-//     console.log('begin register');
-//     const { email, password } = req.query;
-
-//     try {
-//         // const user = await UserModel.createUser(email, password);
-//         const {
-//             randomBytes,
-//         } = await import('node:crypto');
-          
-//         const activation_key = randomBytes(30).toString('hex');
-
-//         try {
-//             // await NodemailerHelper.send_register_email(email, activation_key);
-//         } catch(e) {
-//             console.log(e)
-//             res.status(401).send('Error sending email');
-//             return;
-//         }
-
-//         const [history] = await knex('registration_history')
-//             .insert({
-//                 user_id: user.id,
-//                 activation_key,
-//                 active: true
-//             })
-//             .returning('*');
-
-//         console.log('Register success')
-        
-//         res.sendStatus(201);
-//     } catch (e){
-//         console.log(e)
-//         res.sendStatus(401);
-//     }
-// });
 
 app.listen(port, () => {
     console.log('Listening to you closely on port: ' + port);

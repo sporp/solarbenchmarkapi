@@ -177,7 +177,8 @@ app.get('/dashboard', async (req, res) => {
     console.log("key")
     console.log(key);
 
-    if( !key ){
+    if( !key || key.length < 1 ){
+        res.status(401).send('You aint got the votes');
         return;
     }
 

@@ -1,0 +1,10 @@
+{
+    "operationName": "FetchPowerData",
+    "variables": {
+        "siteKey": "E_63596",
+        "interval": "five_minute",
+        "end": "2024-03-20T23:59:59",
+        "start": "2024-03-11T00:00:00"
+    },
+    "query": "query FetchPowerData($interval: String!, $end: String!, $start: String!, $siteKey: String!) {\n  power(interval: $interval, end: $end, start: $start, siteKey: $siteKey) {\n    powerDataSeries {\n      production\n      consumption\n      storage\n      grid\n      __typename\n    }\n    __typename\n  }\n}\n"
+}

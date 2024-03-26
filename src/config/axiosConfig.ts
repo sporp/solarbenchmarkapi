@@ -9,16 +9,28 @@ export const axiosClient = axios.create({
 });
 
 /** i just did this so i didn't have to write the header every time */
-function getHeader(){
+export function getHeader(){
     const config = {
         headers: {
             'Content-Type': 'application/json', //x-www-form-urlencoded application/json
-            'Authorization': `Bearer ${process.env.SOLAR_TOKEN || ''}`
+            'Authorization': `Bearer ${process.env.SOLAR_TOKEN || ''}`,
+            'timeout': 100000
         }
     }
-
     return config;
 }
+
+// /** i just did this so i didn't have to write the header every time */
+// function getHeader(){
+//     const config = {
+//         headers: {
+//             'Content-Type': 'application/json', //x-www-form-urlencoded application/json
+//             'Authorization': `Bearer ${process.env.SOLAR_TOKEN || ''}`
+//         }
+//     }
+
+//     return config;
+// }
 
 export async function get (url: string) {
     const config = getHeader();

@@ -9,7 +9,7 @@ import { knex } from './config/knexConfig';
 
 import mongoose, { createConnection, now } from 'mongoose';
 
-import graphQLPowerCall from '../src/graphQLPowerCall.json'; 
+import graphQLPowerCall from './graphQLPowerCall.json'; 
 
 let fs = require('fs');
 dotenv.config({path: '.env'});
@@ -154,6 +154,8 @@ app.post('/upload/:date', async (req, res) => {
     let response: any;
     const config = getHeader();
 
+    // console.log(JSON.stringify(graphQLPowerCall));
+
     try {
         response = await axios.post(baseURL + 'graphql', graphQLPowerCall, config);
     } catch (error) {
@@ -161,13 +163,15 @@ app.post('/upload/:date', async (req, res) => {
         return;
     }
 
-    // console.log(response);
-
     if(!response || response.length < 1){
-        return
+        return;
     }
 
-    const powerData = response.data.data.power;
+    console.log(response.data);
+
+    const powerData = response.data[0].data.power;
+
+
 
     const production = powerData.powerDataSeries.production;
     const consumption = powerData.powerDataSeries.consumption;
@@ -249,20 +253,28 @@ app.get('/dashboard', async (req, res) => {
     let sum_production = 0;
     let sum_consumption = 0;
     let sum_storage = 0;
-    let sum_grid = 0;
+    let sum_grid_usage = 0;
+    let sum_grid_feeding = 0
 
     for(const d of dashData){
         if(d && d.production) sum_production += d.production;
         if(d && d.consumption) sum_consumption += d.consumption;
         if(d && d.storage) sum_storage += d.storage;
-        if(d && d.grid) sum_grid += d.grid;
+        if(d && d.grid){
+            if(d.grid > 0){
+                sum_grid_usage += d.grid;
+            } else {
+                sum_grid_feeding -= d.grid;
+            }
+        }
     }
 
     res.status(200).json({
         sum_production,
         sum_consumption,
         sum_storage,
-        sum_grid
+        sum_grid_usage,
+        sum_grid_feeding
     });
 });
 

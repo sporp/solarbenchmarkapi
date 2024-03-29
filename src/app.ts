@@ -117,7 +117,7 @@ app.get('/webhook', async (req, res) => {
         res.sendStatus(401);
     }
     res.status(200).send('Data saved from webhook');
-})
+});
 
 // make simple mongoose post call to create API key
 app.post('/key', async (req, res) => {
@@ -170,8 +170,6 @@ app.post('/upload/:date', async (req, res) => {
     console.log(response.data);
 
     const powerData = response.data[0].data.power;
-
-
 
     const production = powerData.powerDataSeries.production;
     const consumption = powerData.powerDataSeries.consumption;
@@ -275,9 +273,110 @@ app.get('/dashboard', async (req, res) => {
         sum_storage,
         sum_grid_usage,
         sum_grid_feeding
-    });
+    }).send();
+
+    // MySunPower threshold test
+});
+
+// data may be inserted incorrectly, or correctly, into DB. looks like it comes in as local TS and the DB converts it into UTC
+// which is 4 hours ahead. Which is fine, just need to keep that in mind
+// so I need to localize anything coming out of the DB, and I need to ensure queries going out
+// hit the external API with local minus trailing shit, 
+
+app.get('/dbTest', async (req, res) => {
+    // username from DB connection to get via match on API key
+    const power = await Power.findOne().sort({timestamp: -1})
+    
+    const oldDate = power ? power.timestamp : null;
+    if(!oldDate) return;
+
+    const oldTs = new Date(oldDate);
+    const currTs = new Date();
+    const hours = 4; // might change during daylight savings time
+    oldTs.setHours(oldTs.getHours() - hours + 1); // so we don't pull the same data and move forward
+    currTs.setHours(currTs.getHours() - hours);
+
+    if(currTs <= oldTs){ // ensures we don't grab data we already have
+        return res.status(200).send('Threshold too low to request more data');
+    }
+
+    // I am looking for old ts = 2024-03-26T11:00:00.000Z
+    // and 2024-03-28T8:00:00.000Z
+
+    // probs needs an index and UNIQUE call on DB
+
+    // if two dates are more than 1 hour apart
+    // make call to MySolarPower
+    graphQLPowerCall[0].variables.end = currTs.toISOString().split('.')[0];
+    graphQLPowerCall[0].variables.start = oldTs.toISOString().split('.')[0];
+
+    let response: any;
+    const config = getHeader();
+
+    try {
+        response = await axios.post(baseURL + 'graphql', graphQLPowerCall, config);
+    } catch (error) {
+        console.log(error);
+        return;
+    }
+
+    if(!response || response.length < 1){
+        return;
+    }
+
+    const powerData = response.data[0].data.power;
+
+    const production = powerData.powerDataSeries.production;
+    const consumption = powerData.powerDataSeries.consumption;
+    const storage = powerData.powerDataSeries.storage;
+    const grid = powerData.powerDataSeries.grid;
+
+    function logSeriesData () {
+        console.log(production);console.log(production.length + '\n');
+        console.log(consumption);console.log(consumption.length + '\n');
+        console.log(storage);console.log(storage.length + '\n');
+        console.log(grid);console.log(grid.length + '\n');
+    } 
+    // logSeriesData ();
+
+    const resultSolarData = [];
+
+    // powervalue is a timestamp + either consumption or generation
+    while(production.length && consumption.length && storage.length && grid.length){
+        const emptyArr = [null, null, null];
+
+        const p = production.shift();
+        const c = p[0] === consumption[0][0] ? consumption.shift() : emptyArr;
+        const s = p[0] === storage[0][0] ? storage.shift() : emptyArr;
+        const g = p[0] === grid[0][0] ? grid.shift() : emptyArr;
+
+        const powerRow = {
+            user_id: 1,
+            timestamp: new Date(p[0]),
+            production: parseFloat(p[1]),
+            consumption: parseFloat(c[1]),
+            storage: parseFloat(s[1]),
+            grid: parseFloat(g[1])
+        }
+
+        // rectify timezones here if any gaps exist, discard any timestamps that are less than current p[0]
+
+        resultSolarData.push(powerRow);
+    }
+
+    console.log(resultSolarData);
+
+    // await Power.insertMany(resultSolarData);
+
+    res.status(200).json(power);
 });
 
 app.listen(port, () => {
     console.log('Listening to you closely on port: ' + port);
 });
+
+// Need a call that polls db for latest document timestamp
+// if greater than threshold, make call to mysunpower grabbing data from doc timestamp to Now()
+// insert into mongodb
+
+// upon refresh, data will be loaded

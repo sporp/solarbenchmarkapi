@@ -4,7 +4,7 @@
   "description": "The backend for solar benchmark analytics. Webhook endpoint for recieving data from each user, collates user solar data for frontend reporting",
   "main": "app.js",
   "scripts": {
-    "start": "tsc && node build/app.js",
+    "start": "rm -rf build && tsc && node build/app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/app.ts",
     "build": "tsc",

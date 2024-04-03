@@ -310,6 +310,33 @@ app.get('/dashboard', async (req, res) => {
     // MySunPower threshold test
 });
 
+app.get('/user-dashboard/:user_id', async (req, res) => {
+    const { user_id } = req.params;
+    const { api_key } = req.query;
+
+    const key = await Key.find({ 'apiKey': api_key });
+
+    if( !key || key.length < 1 ){
+        res.status(401).send('The numbers mason, what do they mean?!');
+        return;
+    }
+
+    const dashData = await PowerMonth.find({ user_id });
+    let responseData = [];
+
+    for(let d of dashData){
+        responseData.push({
+            user_id: d.user_id,
+            month: d.month,
+            year: d.year,
+            production: d.production,
+            consumption: d.consumption
+        });
+    }
+
+    res.status(200).json(responseData);
+});
+
 // data may be inserted incorrectly, or correctly, into DB. looks like it comes in as local TS and the DB converts it into UTC
 // which is 4 hours ahead. Which is fine, just need to keep that in mind
 // so I need to localize anything coming out of the DB, and I need to ensure queries going out

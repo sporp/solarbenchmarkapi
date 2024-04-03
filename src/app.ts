@@ -65,7 +65,7 @@ const powerMonthSchema = new mongoose.Schema({
     month: Number,
     year: Number,
     production: Number,
-    consumption: Number
+    consumption: Number,
 });
 
 const Key = mongoose.model('key', keySchema);
@@ -234,7 +234,8 @@ app.post('/upload-month', async (req, res)=> {
     // month = month.parseInt();
     // year = year.parseInt();
 
-    const prevEntry = await PowerMonth.find({ month, year });
+    const prevEntry = await PowerMonth.deleteOne({ user_id, month, year });
+    console.log(prevEntry)
     // TODO delete if exists
 
     const powerMonth = new PowerMonth({ user_id, month, year, production, consumption });
@@ -304,7 +305,7 @@ app.get('/dashboard', async (req, res) => {
         sum_storage,
         sum_grid_usage,
         sum_grid_feeding
-    }).send();
+    });
 
     // MySunPower threshold test
 });

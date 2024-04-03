@@ -266,10 +266,7 @@ app.post('/uploadBulk', async (req, res) => {
 
 app.get('/dashboard', async (req, res) => {
     const { api_key } = req.query;
-    // console.log("api_key");console.log(api_key);
-
     const key = await Key.find({ 'apiKey': api_key });
-    // console.log("key");console.log(key);
 
     if( !key || key.length < 1 ){
         res.status(401).send('The numbers mason, what do they mean?!');
@@ -278,17 +275,34 @@ app.get('/dashboard', async (req, res) => {
 
     const dashData = await PowerMonth.find();
 
-    // console.log(dashData);
+    let currDate = new Date();
+
+    console.log(currDate.getFullYear() === dashData[0].year);
+    console.log(dashData[0].year);
 
     let sum_production = 0;
     let sum_consumption = 0;
+
+    let production_lifetime = 0
+    let consumption_lifetime = 0;
+    let production_ytd = 0;
+    let consumption_ytd = 0;
+
     let sum_storage = 0;
     let sum_grid_usage = 0;
     let sum_grid_feeding = 0
 
     for(const d of dashData){
-        if(d && d.production) sum_production += d.production;
-        if(d && d.consumption) sum_consumption += d.consumption;
+        if(d && d.production){
+            if(currDate.getFullYear() === d.year) { production_ytd += d.production; }
+            production_lifetime += d.production;
+            sum_production += d.production;
+        }
+        if(d && d.consumption){
+            if(currDate.getFullYear() === d.year) { consumption_ytd += d.consumption; }
+            consumption_lifetime += d.consumption;
+            sum_consumption += d.consumption;
+        }
         // if(d && d.storage) sum_storage += d.storage;
         // if(d && d.grid){
         //     if(d.grid > 0){
@@ -302,12 +316,14 @@ app.get('/dashboard', async (req, res) => {
     res.status(200).json({
         sum_production,
         sum_consumption,
+        production_lifetime,
+        consumption_lifetime,
+        production_ytd,
+        consumption_ytd,
         // sum_storage,
         // sum_grid_usage,
         // sum_grid_feeding
     });
-
-    // MySunPower threshold test
 });
 
 app.get('/user-dashboard/:user_id', async (req, res) => {
@@ -333,6 +349,8 @@ app.get('/user-dashboard/:user_id', async (req, res) => {
             consumption: d.consumption
         });
     }
+
+    responseData.sort( (a: any, b: any) => { return  a.month + a.year * 100 - b.month + b.year * 100});
 
     res.status(200).json(responseData);
 });

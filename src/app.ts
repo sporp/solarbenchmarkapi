@@ -3,11 +3,14 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
 import axios from 'axios';
+import mongoose, { createConnection, now } from 'mongoose';
+import multer from 'multer';
+const pdf = require('pdf-parse');
+
 
 import { axiosClient, getHeader } from './config/axiosConfig';
 import { knex } from './config/knexConfig';
-
-import mongoose, { createConnection, now } from 'mongoose';
+import solarData from './helper/solarData';
 
 import graphQLPowerCall from './graphQLPowerCall.json'; 
 
@@ -17,13 +20,18 @@ dotenv.config({path: '.env'});
 const app = express();
 const port = process.env.PORT || 3456;
 
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
 const JWT_SECRET = process.env.JWT_SECRET || 'secrets_secrets_are_no_fun';
 const MONGO_STRING = process.env.MONGO_STRING || '';
 const baseURL = process.env.SOLAR_URL || '';
 
+const whitelist = ['https://solarbenchmark.com/']
+
 app.use(cors({
     allowedHeaders: '*',
-    origin: '*',
+    origin: whitelist,
     methods: '*',
     optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
 }));
@@ -52,8 +60,17 @@ const powerSchema = new mongoose.Schema({
     grid: Number
 });
 
+const powerMonthSchema = new mongoose.Schema({
+    user_id: Number,
+    month: Number,
+    year: Number,
+    production: Number,
+    consumption: Number
+});
+
 const Key = mongoose.model('key', keySchema);
 const Power = mongoose.model("Power", powerSchema);
+const PowerMonth = mongoose.model("PowerMonth", powerMonthSchema);
 const User = mongoose.model("User", userSchema);
 
 function authenticateToken(req: any, res: any, next: any) {
@@ -131,14 +148,29 @@ app.post('/key', async (req, res) => {
     res.status(200).send('Key written');
 });
 
-// create 'insertMany' (if in mongoose) from JSON of downloaded data
-// OR python call can do a bunch of calls for upload 
-app.post('/upload', async (req, res) => {
-    const { production, consumption, storage, timestamp } = req.body;
+/**
+ * process file, scrape for data
+ * somehow relate the data to current user
+ * aggregate all users
+ * have a custom field under user on profile and on forum messages that show a single user's power inputs and outputs
+ */
+app.post('/upload', upload.any(), async (req: any, res) => {
+    let type = '';
+    console.log(req.query);
+    console.log(req.files);
+    if(req.files[0] && req.files[0].mimetype) type = req.files[0].mimetype;
+    if(req.files[0] && req.files[0].type) type = req.files[0].type;
+
+    let pdfRam = req.files[0];
+
+    // const dataBuffer = fs.readFileSync(pdfRam);
+    const data = await pdf(pdfRam.buffer);
+    console.log(data.text); // TODO TEXT IS NOW AVAILABLE, PROCESS AND SEND TO DB
+
     const user_id = 1;
-    const power = new Power({ user_id, userame: 'admin', production, consumption, storage, timestamp });
+    // const power = new Power({ user_id, userame: 'admin', production, consumption, storage, timestamp });
     try {
-        await power.save();
+        // await power.save();
     } catch (e){
         console.log(e)
         res.sendStatus(401);
@@ -176,38 +208,8 @@ app.post('/upload/:date', async (req, res) => {
     const storage = powerData.powerDataSeries.storage;
     const grid = powerData.powerDataSeries.grid;
 
-    function logSeriesData () {
-        console.log(production);console.log(production.length + '\n');
-        console.log(consumption);console.log(consumption.length + '\n');
-        console.log(storage);console.log(storage.length + '\n');
-        console.log(grid);console.log(grid.length + '\n');
-    } 
-    // logSeriesData ();
-
-    const resultSolarData = [];
-
-    // powervalue is a timestamp + either consumption or generation
-    while(production.length && consumption.length && storage.length && grid.length){
-        const emptyArr = [null, null, null];
-
-        const p = production.shift();
-        const c = p[0] === consumption[0][0] ? consumption.shift() : emptyArr;
-        const s = p[0] === storage[0][0] ? storage.shift() : emptyArr;
-        const g = p[0] === grid[0][0] ? grid.shift() : emptyArr;
-
-        const powerRow = {
-            user_id: 1,
-            timestamp: new Date(p[0]),
-            production: parseFloat(p[1]),
-            consumption: parseFloat(c[1]),
-            storage: parseFloat(s[1]),
-            grid: parseFloat(g[1])
-        }
-
-        // rectify timezones here if any gaps exist, discard any timestamps that are less than current p[0]
-
-        resultSolarData.push(powerRow);
-    }
+    let resultSolarData = [];
+    resultSolarData = new solarData().formatSolarData(production, consumption, storage, grid);
 
     // console.log(resultSolarData);
 
@@ -215,6 +217,35 @@ app.post('/upload/:date', async (req, res) => {
 
     console.log('wrote to db. allegedly')
     res.status(200).send('Data retrieved and sent to db');
+});
+
+app.post('/upload-month', async (req, res)=> {
+    const { api_key } = req.query;
+
+    const key = await Key.find({ 'apiKey': api_key });
+
+    if( !key || key.length < 1 ){
+        res.status(401).send('The numbers mason, what do they mean?!');
+        return;
+    }
+
+    const { user_id, month, year, production, consumption,} = req.body;
+    // let [ month, year ] = date.split('-');
+    // month = month.parseInt();
+    // year = year.parseInt();
+
+    const prevEntry = await PowerMonth.find({ month, year });
+    // TODO delete if exists
+
+    const powerMonth = new PowerMonth({ user_id, month, year, production, consumption });
+
+    try {
+        await powerMonth.save();
+    } catch (e){
+        console.log(e)
+        res.send(401).send('Error in data insertion');
+    }
+    res.status(200).send('Data saved from webhook');
 });
 
 // create 'insertMany' (if in mongoose) from JSON of downloaded data
@@ -281,8 +312,7 @@ app.get('/dashboard', async (req, res) => {
 // data may be inserted incorrectly, or correctly, into DB. looks like it comes in as local TS and the DB converts it into UTC
 // which is 4 hours ahead. Which is fine, just need to keep that in mind
 // so I need to localize anything coming out of the DB, and I need to ensure queries going out
-// hit the external API with local minus trailing shit, 
-
+// hit the external API with local minus trailing shit
 app.get('/dbTest', async (req, res) => {
     // username from DB connection to get via match on API key
     const power = await Power.findOne().sort({timestamp: -1})
@@ -331,42 +361,12 @@ app.get('/dbTest', async (req, res) => {
     const storage = powerData.powerDataSeries.storage;
     const grid = powerData.powerDataSeries.grid;
 
-    function logSeriesData () {
-        console.log(production);console.log(production.length + '\n');
-        console.log(consumption);console.log(consumption.length + '\n');
-        console.log(storage);console.log(storage.length + '\n');
-        console.log(grid);console.log(grid.length + '\n');
-    } 
-    // logSeriesData ();
+    let resultSolarData = [];
+    resultSolarData = new solarData().formatSolarData(production, consumption, storage, grid);
 
-    const resultSolarData = [];
+    // console.log(resultSolarData);
 
-    // powervalue is a timestamp + either consumption or generation
-    while(production.length && consumption.length && storage.length && grid.length){
-        const emptyArr = [null, null, null];
-
-        const p = production.shift();
-        const c = p[0] === consumption[0][0] ? consumption.shift() : emptyArr;
-        const s = p[0] === storage[0][0] ? storage.shift() : emptyArr;
-        const g = p[0] === grid[0][0] ? grid.shift() : emptyArr;
-
-        const powerRow = {
-            user_id: 1,
-            timestamp: new Date(p[0]),
-            production: parseFloat(p[1]),
-            consumption: parseFloat(c[1]),
-            storage: parseFloat(s[1]),
-            grid: parseFloat(g[1])
-        }
-
-        // rectify timezones here if any gaps exist, discard any timestamps that are less than current p[0]
-
-        resultSolarData.push(powerRow);
-    }
-
-    console.log(resultSolarData);
-
-    // await Power.insertMany(resultSolarData);
+    await Power.insertMany(resultSolarData);
 
     res.status(200).json(power);
 });

@@ -316,10 +316,11 @@ app.get('/dashboard', async (req, res) => {
     res.status(200).json({
         sum_production,
         sum_consumption,
-        production_lifetime,
-        consumption_lifetime,
+
         production_ytd,
         consumption_ytd,
+        production_lifetime,
+        consumption_lifetime,
         // sum_storage,
         // sum_grid_usage,
         // sum_grid_feeding

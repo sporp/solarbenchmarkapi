@@ -31,7 +31,7 @@ const whitelist = ['https://solarbenchmark.com/']
 
 app.use(cors({
     allowedHeaders: '*',
-    origin: '*',// whitelist,
+    origin: 'https://solarbenchmark.com',// whitelist,
     methods: '*',
     optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
 }));

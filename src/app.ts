@@ -19,7 +19,6 @@ const app = express();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-
 // MODELS
 import { EstimateReport } from './model/EstimateReport';
 import { Key } from './model/Key';
@@ -201,7 +200,7 @@ app.post('/solar-estimator', verifyKey, async (req, res)=> {
 });
 
 app.post('/upload-month', verifyKey, async (req, res)=> {
-    const { user_id, month, year, production, consumption,} = req.body;
+    const { user_id, username, month, year, production, consumption,} = req.body;
     // let [ month, year ] = date.split('-');
     // month = month.parseInt();
     // year = year.parseInt();
@@ -261,16 +260,8 @@ app.get('/dashboard', verifyKey, async (req, res) => {
     res.status(200).json(dashboardData);
 });
 
-app.get('/user-dashboard/:user_id', async (req, res) => {
+app.get('/user-dashboard/:user_id', verifyKey, async (req, res) => {
     const { user_id } = req.params;
-    const { api_key } = req.query;
-
-    const key = await Key.find({ 'apiKey': api_key });
-
-    if( !key || key.length < 1 ){
-        res.status(401).send('The numbers mason, what do they mean?!');
-        return;
-    }
 
     const dashDataMonth = await PowerMonth.find({ user_id });
     let responseData = [];

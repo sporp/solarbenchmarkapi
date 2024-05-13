@@ -22,11 +22,12 @@ import mongoose, { modelNames } from "mongoose";
 // should this be 3 different schemas? f it for now
 
 const powerSchema = new mongoose.Schema({
-    username: String,
-    production: Array,
-    consumption: Array,
-    storage: Array,
-    timestamp: String
+    user_id: Number,
+    timestamp: Date,
+    production: Number,
+    consumption: Number,
+    storage: Number,
+    grid: Number
 });
 
 export const Power = mongoose.model("Power", powerSchema);

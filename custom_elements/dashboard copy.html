@@ -1,0 +1,74 @@
+<div id='customDashboardElement' class='block-container'></div>
+
+<script>
+fetch('https://solar-benchmark-api.onrender.com/dashboard?api_key=rcPtcJimLmGFhVVqwrmZYkSMGhRJRFpH3EbBqt4Knyu3hAFzfM')
+    .then(response => response.json())
+    .then(data => {
+		console.log(data);
+        // Assuming API returns an array of items
+        const customElement = document.getElementById('customDashboardElement');
+	
+//		"sum_production": 15423.367920662002,
+//		"sum_consumption": 20178.399023745045,
+//		"sum_storage": 0,
+//		"sum_grid": 4868.249831294989
+		const labelDiv = document.createElement('h2');
+		const productionDiv = document.createElement('h3');
+		const solarConsumptionDiv = document.createElement('h3');
+		const consumptionDiv = document.createElement('h3');
+		const gridUseDiv = document.createElement('h3');
+		const gridFeedDiv = document.createElement('h3');
+		const netDiv = document.createElement('h3');
+	
+		function updateElementStyle(el){
+			const zer="0px";
+			const padVert = "2px";
+			const padHor="6px";
+
+			el.style.margin=zer;
+			el.style.paddingTop=padVert;
+			el.style.paddingBottom=padVert;
+			el.style.paddingLeft=padHor;
+			el.style.paddingRight=padHor;
+		}
+
+		updateElementStyle(labelDiv);
+		updateElementStyle(productionDiv);
+		updateElementStyle(solarConsumptionDiv);
+		updateElementStyle(consumptionDiv);
+		updateElementStyle(gridUseDiv);
+		updateElementStyle(gridFeedDiv);
+		updateElementStyle(netDiv);
+	
+		function humanReadableNums(f){
+			let i = Math.trunc(f);
+			// moved from 5 minutes to hours, so division is unnecessary
+			// i = i / 12; // we have our data in 5 minute intervals, divide by 12 to convert to kWh
+			return i.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+		}
+
+		labelDiv.textContent = 'YTD Solar Power Analytics All Users';
+		productionDiv.textContent = 'Total Solar Production: ' + humanReadableNums(data.sum_production) + ' kWh';
+		solarConsumptionDiv.textContent = 'Home Solar Consumption: ' + humanReadableNums(data.sum_production - data.sum_grid_feeding) + ' kWh';
+		gridFeedDiv.textContent = 'Solar Exported To Grid: ' + humanReadableNums(data.sum_grid_feeding) + ' kWh';
+
+		consumptionDiv.textContent = 'Total Power Consumption: ' + humanReadableNums(data.sum_consumption) + ' kWh';
+		gridUseDiv.textContent = 'Power Consumed From Grid: ' + humanReadableNums(data.sum_grid_usage) + ' kWh';
+	
+		customElement.appendChild(labelDiv);
+		customElement.appendChild(productionDiv);
+		// customElement.appendChild(solarConsumptionDiv);
+		// customElement.appendChild(gridFeedDiv);
+		// customElement.appendChild(document.createElement('br'));
+		customElement.appendChild(consumptionDiv);
+		// customElement.appendChild(gridUseDiv);	
+		// customElement.appendChild(document.createElement('br'));
+
+//        data.forEach(item => {
+//            const itemElement = document.createElement('div');
+//            itemElement.textContent = item.name;  // Example: Display item's name
+//            customElement.appendChild(itemElement);
+//        });
+    })
+    .catch(error => console.error('Error fetching data:', error));
+</script>

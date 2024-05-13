@@ -1,0 +1,31 @@
+<!-- Need to pull user ID from php, API key can be inline if we fix CORS -->
+<xf:if is="$xf.visitor.user_id">
+	<p>Select the month you are reporting, add the power you produced and consumed in Kilowatts, then hit submit.</p>
+    <p>You can overwrite data for months previously submitted by submitting again.</p>
+    <form onsubmit="alert('Data Submitted')" action="https://solar-benchmark-api.onrender.com/upload-month?api_key=rcPtcJimLmGFhVVqwrmZYkSMGhRJRFpH3EbBqt4Knyu3hAFzfM" method="post" class="form-example" id="solar-upload-form" target="dummyframe">
+        <input type="hidden" name="user_id" value="{{ $xf.visitor.user_id }}">
+        <div class="form-example">
+            <input type="number" id="month" name="month" min="1" max="12" value="1"/>
+            <label for="month">Month</label>
+        </div>
+        <div class="form-example">
+            <input type="number" id="year" name="year" min="2020" max="2040" value="2024"/>
+            <label for="year">Year</label>
+        </div>
+        <div class="form-example">
+            <input type="production" name="production" id="production" required value="0"/>
+            <label for="production">Solar Production (kWh)</label>
+        </div>
+        <div class="form-example">
+            <input type="consumption" name="consumption" id="consumption" required value="0"/>
+            <label for="consumption">Power Consumption (kWh)</label>
+        </div>
+        <div class="form-example">
+            <input type="submit" value="submit" id="solar-submit"/>
+        </div>
+    </form>
+<xf:else />
+	<xf:h1>Must Be A Member To Upload Data</xf:h1>
+</xf:if>
+
+<iframe name="dummyframe" id="dummyframe" style="display: none;"></iframe>

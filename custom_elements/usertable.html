@@ -1,0 +1,50 @@
+<script>
+    fetch('https://solar-benchmark-api.onrender.com/user-dashboard/{{ $user.user_id }}?api_key=rcPtcJimLmGFhVVqwrmZYkSMGhRJRFpH3EbBqt4Knyu3hAFzfM')
+        .then(response => response.json())
+        .then(data => {
+            // Assuming API returns an array of items
+            const customElement = document.getElementById('customUserDashboardElement');
+        
+            const labelDiv = document.createElement('h2');
+        
+            function updateElementStyle(el){
+                const zer="0px";
+                const padVert = "2px";
+                const padHor="6px";
+    
+                el.style.margin=zer;
+                el.style.paddingTop=padVert;
+                el.style.paddingBottom=padVert;
+                el.style.paddingLeft=padHor;
+                el.style.paddingRight=padHor;
+            }
+    
+            updateElementStyle(labelDiv);
+
+            function humanReadableNums(f){
+                let i = Math.trunc(f);
+                // moved from 5 minutes to hours, so division is unnecessary
+                // i = i / 12; // we have our data in 5 minute intervals, divide by 12 to convert to kWh
+                return i.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+            }
+    
+            labelDiv.textContent = 'User Solar Power Analytics';
+            customElement.appendChild(labelDiv);
+
+            data.sort( (a,b) => { return (b.month + b.year * 100) - (a.month + a.year * 100)});
+        
+            data.forEach(item => {
+                const itemElement = document.createElement('div');
+                updateElementStyle(itemElement);
+                let month = item.month;
+                if(item.month < 10){
+                    month = '0' + month;
+                }
+                itemElement.textContent = 'Date: ' + item.year + '-' + month + ' Production: ' + item.production + ' Consumption: ' + item.consumption;
+                customElement.appendChild(itemElement);
+            });
+        })
+        .catch(error => console.error('Error fetching data:', error));
+    </script>
+    
+    <div id='customUserDashboardElement' class='block-container'></div>

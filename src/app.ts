@@ -1,33 +1,37 @@
-import dotenv from 'dotenv';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
-import axios from 'axios';
 import mongoose, { createConnection, now } from 'mongoose';
 import multer from 'multer';
 const pdf = require('pdf-parse');
 
-
-import { axiosClient, getHeader } from './config/axiosConfig';
 import { knex } from './config/knexConfig';
-import solarData from './helper/solarData';
 
-import graphQLPowerCall from './graphQLPowerCall.json'; 
+import Estimator from './class/Estimator';
+import Dashboard from './class/Dashboard';
+import Test from './class/Test';
 
 let fs = require('fs');
-dotenv.config({path: '.env'});
+import { port, JWT_SECRET, MONGO_STRING } from './config/envVars'
 
 const app = express();
-const port = process.env.PORT || 3456;
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secrets_secrets_are_no_fun';
-const MONGO_STRING = process.env.MONGO_STRING || '';
-const baseURL = process.env.SOLAR_URL || '';
+
+// MODELS
+import { EstimateReport } from './model/EstimateReport';
+import { Key } from './model/Key';
+import { Power } from './model/Power';
+import { PowerDay } from './model/PowerDay';
+import { PowerMonth } from './model/PowerMonth';
+import { User } from './model/User';
 
 const whitelist = ['https://solarbenchmark.com/']
+const dash = new Dashboard();
+const est = new Estimator();
+const test = new Test();
 
 app.use(cors({
     allowedHeaders: '*',
@@ -41,37 +45,6 @@ app.use(express.urlencoded({ extended: true }));
 
 mongoose.connect(MONGO_STRING)
   .then(() => console.log('Connected!'));
-
-const keySchema = new mongoose.Schema({
-    apiKey: String
-});
-
-const userSchema = new mongoose.Schema({
-    username: String,
-    apiKey: String
-});
-
-const powerSchema = new mongoose.Schema({
-    user_id: Number,
-    timestamp: Date,
-    production: Number,
-    consumption: Number,
-    storage: Number,
-    grid: Number
-});
-
-const powerMonthSchema = new mongoose.Schema({
-    user_id: Number,
-    month: Number,
-    year: Number,
-    production: Number,
-    consumption: Number,
-});
-
-const Key = mongoose.model('key', keySchema);
-const Power = mongoose.model("Power", powerSchema);
-const PowerMonth = mongoose.model("PowerMonth", powerMonthSchema);
-const User = mongoose.model("User", userSchema);
 
 function authenticateToken(req: any, res: any, next: any) {
     const authHeader = req.headers['Authorization'] || req.headers['authorization'];
@@ -88,6 +61,16 @@ function authenticateToken(req: any, res: any, next: any) {
         req.user = user;
         next();
     })
+}
+
+async function verifyKey(req: any, res: any, next: any) {
+    const { api_key } = req.query;
+    const key = await Key.find({ 'apiKey': api_key });
+    if( !key || key.length < 1 ){
+        res.status(401).send('The numbers mason, what do they mean?!');
+        return;
+    }
+    next();
 }
 
 // GET method route
@@ -145,6 +128,7 @@ app.post('/key', async (req, res) => {
         console.log(e)
         res.sendStatus(401);
     }
+
     res.status(200).send('Key written');
 });
 
@@ -178,70 +162,77 @@ app.post('/upload', upload.any(), async (req: any, res) => {
     res.status(200).send('Data saved from webhook');
 });
 
-// uploadGivenTimestamp
-// given timestamp requested in url, scrape data for that day and upload into db
-app.post('/upload/:date', async (req, res) => {
-    const date = req.params.date;
+/**
+ * sends list of all reports for given user
+ */
+app.get('/solar-estimator-list', verifyKey, async (req, res)=> {
+    // TODO get all estimate timestamps, ordered
+    // retrieve latest report and tack into data (?)
+    const estimate = await EstimateReport.findOne().sort({timestamp: -1})
 
-    let response: any;
-    const config = getHeader();
-
-    // console.log(JSON.stringify(graphQLPowerCall));
-
-    try {
-        response = await axios.post(baseURL + 'graphql', graphQLPowerCall, config);
-    } catch (error) {
-        console.log(error);
-        return;
-    }
-
-    if(!response || response.length < 1){
-        return;
-    }
-
-    console.log(response.data);
-
-    const powerData = response.data[0].data.power;
-
-    const production = powerData.powerDataSeries.production;
-    const consumption = powerData.powerDataSeries.consumption;
-    const storage = powerData.powerDataSeries.storage;
-    const grid = powerData.powerDataSeries.grid;
-
-    let resultSolarData = [];
-    resultSolarData = new solarData().formatSolarData(production, consumption, storage, grid);
-
-    // console.log(resultSolarData);
-
-    await Power.insertMany(resultSolarData);
-
-    console.log('wrote to db. allegedly')
-    res.status(200).send('Data retrieved and sent to db');
+    res.status(200).send('Data saved from webhook');
 });
 
-app.post('/upload-month', async (req, res)=> {
-    const { api_key } = req.query;
+/**
+ * latest report for given user
+ */
+app.get('/solar-estimator/:user_id/latest', verifyKey, async (req, res)=> {
+    const { user_id } = req.params;
 
-    const key = await Key.find({ 'apiKey': api_key });
+    const estimate = await EstimateReport.findOne({ user_id }).sort({timestamp: -1})
 
-    if( !key || key.length < 1 ){
-        res.status(401).send('The numbers mason, what do they mean?!');
-        return;
+    res.status(200).send(estimate);
+});
+
+/**
+ * This endpoint recieves the data fields from the solar panel estimator page
+ * Sends them as a prompt to openai, receives data in standardized format, json or csv
+ * Save report to DB for user
+ * Sends generated report to dashboard
+ */
+app.post('/solar-estimator', verifyKey, async (req, res)=> {
+    try {
+        const estimateResult = est.create(req.body);
+        res.status(200).send(estimateResult);
+    } catch (e){
+        console.log(e)
+        res.send(401).send('Error in data insertion');
     }
+});
 
+app.post('/upload-month', verifyKey, async (req, res)=> {
     const { user_id, month, year, production, consumption,} = req.body;
     // let [ month, year ] = date.split('-');
     // month = month.parseInt();
     // year = year.parseInt();
-
     const prevEntry = await PowerMonth.deleteOne({ user_id, month, year });
-    console.log(prevEntry)
-    // TODO delete if exists
 
     const powerMonth = new PowerMonth({ user_id, month, year, production, consumption });
 
     try {
         await powerMonth.save();
+    } catch (e){
+        console.log(e)
+        res.send(401).send('Error in data insertion');
+    }
+    res.status(200).send('Data saved from webhook');
+});
+
+// FRONTEND Always display yesterday as the latest applicable value and what can be displayed
+// So, how are we going to interpolate this data?
+// I guess we pull the month for production and consumption from both month and year data
+// If data exists in day, we use that. If month and day, we use day and ignore that in the rollup
+// if data only exists in monthly, we use that
+app.post('/upload-day', verifyKey, async (req, res)=> {
+    const { user_id, day, month, year, production, consumption,} = req.body;
+
+    const prevEntry = await PowerDay.deleteOne({ user_id, day, month, year }); // delete if exists
+    console.log(prevEntry)
+
+    const powerDay = new PowerDay({ user_id, month, year, production, consumption });
+
+    try {
+        await powerDay.save();
     } catch (e){
         console.log(e)
         res.send(401).send('Error in data insertion');
@@ -264,67 +255,10 @@ app.post('/uploadBulk', async (req, res) => {
     res.status(200).send('Data saved from webhook');
 });
 
-app.get('/dashboard', async (req, res) => {
-    const { api_key } = req.query;
-    const key = await Key.find({ 'apiKey': api_key });
+app.get('/dashboard', verifyKey, async (req, res) => {
+    const dashboardData = await dash.buildDashboardObject();
 
-    if( !key || key.length < 1 ){
-        res.status(401).send('The numbers mason, what do they mean?!');
-        return;
-    }
-
-    const dashData = await PowerMonth.find();
-
-    let currDate = new Date();
-
-    console.log(currDate.getFullYear() === dashData[0].year);
-    console.log(dashData[0].year);
-
-    let sum_production = 0;
-    let sum_consumption = 0;
-
-    let production_lifetime = 0
-    let consumption_lifetime = 0;
-    let production_ytd = 0;
-    let consumption_ytd = 0;
-
-    let sum_storage = 0;
-    let sum_grid_usage = 0;
-    let sum_grid_feeding = 0
-
-    for(const d of dashData){
-        if(d && d.production){
-            if(currDate.getFullYear() === d.year) { production_ytd += d.production; }
-            production_lifetime += d.production;
-            sum_production += d.production;
-        }
-        if(d && d.consumption){
-            if(currDate.getFullYear() === d.year) { consumption_ytd += d.consumption; }
-            consumption_lifetime += d.consumption;
-            sum_consumption += d.consumption;
-        }
-        // if(d && d.storage) sum_storage += d.storage;
-        // if(d && d.grid){
-        //     if(d.grid > 0){
-        //         sum_grid_usage += d.grid;
-        //     } else {
-        //         sum_grid_feeding -= d.grid;
-        //     }
-        // }
-    }
-
-    res.status(200).json({
-        sum_production,
-        sum_consumption,
-
-        production_ytd,
-        consumption_ytd,
-        production_lifetime,
-        consumption_lifetime,
-        // sum_storage,
-        // sum_grid_usage,
-        // sum_grid_feeding
-    });
+    res.status(200).json(dashboardData);
 });
 
 app.get('/user-dashboard/:user_id', async (req, res) => {
@@ -338,10 +272,10 @@ app.get('/user-dashboard/:user_id', async (req, res) => {
         return;
     }
 
-    const dashData = await PowerMonth.find({ user_id });
+    const dashDataMonth = await PowerMonth.find({ user_id });
     let responseData = [];
 
-    for(let d of dashData){
+    for(let d of dashDataMonth){
         responseData.push({
             user_id: d.user_id,
             month: d.month,
@@ -362,58 +296,7 @@ app.get('/user-dashboard/:user_id', async (req, res) => {
 // hit the external API with local minus trailing shit
 app.get('/dbTest', async (req, res) => {
     // username from DB connection to get via match on API key
-    const power = await Power.findOne().sort({timestamp: -1})
-    
-    const oldDate = power ? power.timestamp : null;
-    if(!oldDate) return;
-
-    const oldTs = new Date(oldDate);
-    const currTs = new Date();
-    const hours = 4; // might change during daylight savings time
-    oldTs.setHours(oldTs.getHours() - hours + 1); // so we don't pull the same data and move forward
-    currTs.setHours(currTs.getHours() - hours);
-
-    if(currTs <= oldTs){ // ensures we don't grab data we already have
-        return res.status(200).send('Threshold too low to request more data');
-    }
-
-    // I am looking for old ts = 2024-03-26T11:00:00.000Z
-    // and 2024-03-28T8:00:00.000Z
-
-    // probs needs an index and UNIQUE call on DB
-
-    // if two dates are more than 1 hour apart
-    // make call to MySolarPower
-    graphQLPowerCall[0].variables.end = currTs.toISOString().split('.')[0];
-    graphQLPowerCall[0].variables.start = oldTs.toISOString().split('.')[0];
-
-    let response: any;
-    const config = getHeader();
-
-    try {
-        response = await axios.post(baseURL + 'graphql', graphQLPowerCall, config);
-    } catch (error) {
-        console.log(error);
-        return;
-    }
-
-    if(!response || response.length < 1){
-        return;
-    }
-
-    const powerData = response.data[0].data.power;
-
-    const production = powerData.powerDataSeries.production;
-    const consumption = powerData.powerDataSeries.consumption;
-    const storage = powerData.powerDataSeries.storage;
-    const grid = powerData.powerDataSeries.grid;
-
-    let resultSolarData = [];
-    resultSolarData = new solarData().formatSolarData(production, consumption, storage, grid);
-
-    // console.log(resultSolarData);
-
-    await Power.insertMany(resultSolarData);
+    const power = await test.dbTest();
 
     res.status(200).json(power);
 });

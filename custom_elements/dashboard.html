@@ -1,0 +1,85 @@
+<div id='customDashboardElement' class='block-container'></div>
+
+<script>
+    fetch('https://solar-benchmark-api.onrender.com/dashboard?api_key=rcPtcJimLmGFhVVqwrmZYkSMGhRJRFpH3EbBqt4Knyu3hAFzfM')
+        .then(response => response.json())
+        .then(data => {
+            // Assuming API returns an array of items
+            const customElement = document.getElementById('customDashboardElement');
+    
+            const labelYtdDiv = document.createElement('h2');
+            const productionYtdDiv = document.createElement('h3');
+            const consumptionYtdDiv = document.createElement('h3');
+            const netYtdDiv = document.createElement('h3');
+
+            const labelLifetimeDiv = document.createElement('h2');
+            const productionLifetimeDiv = document.createElement('h3');
+            const consumptionLifetimeDiv = document.createElement('h3');
+            const netLifetimeDiv = document.createElement('h3');
+        
+            function updateElementStyle(el){
+                const zer="0px";
+                const padVert = "2px";
+                const padHor="6px";
+    
+                el.style.margin=zer;
+                el.style.paddingTop=padVert;
+                el.style.paddingBottom=padVert;
+                el.style.paddingLeft=padHor;
+                el.style.paddingRight=padHor;
+            }
+    
+            updateElementStyle(labelYtdDiv);
+            updateElementStyle(productionYtdDiv);
+            updateElementStyle(consumptionYtdDiv);
+            updateElementStyle(netYtdDiv);
+
+            updateElementStyle(labelLifetimeDiv);
+            updateElementStyle(productionLifetimeDiv);
+            updateElementStyle(consumptionLifetimeDiv);
+            updateElementStyle(netLifetimeDiv);
+        
+            function humanReadableNums(f){
+                let i = Math.trunc(f);
+                // moved from 5 minutes to hours, so division is unnecessary
+                // i = i / 12; // we have our data in 5 minute intervals, divide by 12 to convert to kWh
+                return i.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+            }
+    
+            labelYtdDiv.textContent = 'YTD Solar Power Analytics All Users';
+            productionYtdDiv.textContent = 'Total Solar Production: ' + humanReadableNums(data.production_ytd) + ' kWh';
+            consumptionYtdDiv.textContent = 'Total Power Consumption: ' + humanReadableNums(data.consumption_ytd) + ' kWh';
+        
+            labelLifetimeDiv.textContent = 'Lifetime Solar Power Analytics All Users';
+            productionLifetimeDiv.textContent = 'Total Solar Production: ' + humanReadableNums(data.production_lifetime) + ' kWh';
+            consumptionLifetimeDiv.textContent = 'Total Power Consumption: ' + humanReadableNums(data.consumption_lifetime) + ' kWh';
+    
+            const netYtdVal = data.production_ytd - data.consumption_ytd;
+            const netLifetimeVal = data.production_lifetime - data.consumption_lifetime;
+    
+            function setNetColor(el, netVal){
+                if(netVal >= 0){
+                    el.style.color="#39b54a";
+                } else {
+                    el.style.color="#ec0000";
+                }
+            }
+    
+            setNetColor(netYtdDiv, netYtdVal);
+            setNetColor(netLifetimeDiv, netLifetimeVal);
+    
+            netYtdDiv.textContent = 'Net Power: ' + humanReadableNums(netYtdVal) + ' kWh';
+            netLifetimeDiv.textContent = 'Net Power: ' + humanReadableNums(netLifetimeVal) + ' kWh';
+        
+            customElement.appendChild(labelYtdDiv);
+            customElement.appendChild(productionYtdDiv);
+            customElement.appendChild(consumptionYtdDiv);
+            customElement.appendChild(netYtdDiv);
+            customElement.appendChild(document.createElement('br'));
+            customElement.appendChild(labelLifetimeDiv);
+            customElement.appendChild(productionLifetimeDiv);
+            customElement.appendChild(consumptionLifetimeDiv);
+            customElement.appendChild(netLifetimeDiv);
+        })
+        .catch(error => console.error('Error fetching data:', error));
+</script>

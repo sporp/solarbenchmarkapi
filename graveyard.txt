@@ -1,0 +1,164 @@
+    // Power.insertMany(resultSolarData).then(result => {
+    //     console.log(result)
+    // })
+
+    // const solarData = axios.get(url, {Bearer $})
+    // const { production, consumption, storage } = req.body;
+
+    /*
+    const user_id = 1;
+    const power = new Power({ user_id, userame: 'admin', production, consumption, storage, timestamp });
+    try {
+        await power.save();
+    } catch (e){
+        console.log(e)
+        res.sendStatus(401);
+    }
+    */
+
+    // Dashboard
+
+
+    // get data dump for dad
+
+    // launch this app
+
+    // worker to scrape data at some point, 1 to multiple times per day
+    // download from sun service to grab data to ram to upload from service
+    // one single upload and one bulk upload route
+
+    // dashboard html (xml?) element to display data on forum main page via api key
+    // make call to backend for dashboard, fetch and display data
+
+
+
+    // get all entries from site creation till now
+    // aggregate all of generation and use from site creation
+
+    // get all from today, figure out top user for power generation at present and top consumer
+
+    // i will store user data by 
+    
+    // check mongo API document for auth verification
+    // Single value of all KW made from 
+    // q. for dad. what is the measurement value ? kilowatts per hour?
+
+    // get sum of all power generated and spent from TS of site creation (sum of all entries)
+
+    // list of TOP 5 USERS ('just most recent for MVP') for both POWER GENERATION AND USE
+
+/**
+ * Call Sam
+ * Call via POST route to push data to mongo db if api-key matches to a user id
+ * in a different doc
+ * 
+ * cron user that calls get to grab api data from Solar Provider
+ * 
+ * 
+ * 
+ * Get via api-key that matches key to user_id, such that all user_id (or all users) data is
+ * processed for requested call.
+ * 
+ * 
+ * Aggregate all power generated and spentfrom site creation
+ * till this day, aggregate all power created and used today
+ * 
+ * Need API key to get
+ */
+
+
+// YYYY-MM-DD format. Ex: 2024-02-18
+// function powerCallBuilder(date: string){
+//     // return `[{"operationName": "FetchPowerData","variables": {"siteKey": "E_63596","interval": "five_minute","end": "${date}23:59:59","start": "${date}T00:00:00"},"query": "query FetchPowerData($interval: String!, $end: String!, $start: String!, $siteKey: String!) {\n  power(interval: $interval, end: $end, start: $start, siteKey: $siteKey) {\n    powerDataSeries {\n      production\n      consumption\n      storage\n      grid\n      __typename\n    }\n    __typename\n  }\n}\n"}]`
+//     return [
+//         {
+//           operationName: "FetchPowerData",
+//           variables: {
+//             siteKey: "E_63596",
+//             interval: "five_minute",
+//             end: date + "23:59:59",
+//             start: date + "T00:00:00"
+//           },
+//           query: "query FetchPowerData($interval: String!, $end: String!, $start: String!, $siteKey: String!) {\n  power(interval: $interval, end: $end, start: $start, siteKey: $siteKey) {\n    powerDataSeries {\n      production\n      consumption\n      storage\n      grid\n      __typename\n    }\n    __typename\n  }\n}\n"
+//         }
+//       ]
+// }
+
+
+// old poll dad's solar api
+// uploadGivenTimestamp
+// given timestamp requested in url, scrape data for that day and upload into db
+app.post('/upload/:date', async (req, res) => {
+    const date = req.params.date;
+
+    let response: any;
+    const config = getHeader();
+
+    // console.log(JSON.stringify(graphQLPowerCall));
+
+    try {
+        response = await axios.post(baseURL + 'graphql', graphQLPowerCall, config);
+    } catch (error) {
+        console.log(error);
+        return;
+    }
+
+    if(!response || response.length < 1){
+        return;
+    }
+
+    console.log(response.data);
+
+    const powerData = response.data[0].data.power;
+
+    const production = powerData.powerDataSeries.production;
+    const consumption = powerData.powerDataSeries.consumption;
+    const storage = powerData.powerDataSeries.storage;
+    const grid = powerData.powerDataSeries.grid;
+
+    let resultSolarData = [];
+    resultSolarData = new solarData().formatSolarData(production, consumption, storage, grid);
+
+    // console.log(resultSolarData);
+
+    await Power.insertMany(resultSolarData);
+
+    console.log('wrote to db. allegedly')
+    res.status(200).send('Data retrieved and sent to db');
+});
+
+
+
+/**
+ * gets report for given user id and report id
+ */
+// app.get('/solar-estimator/:user_id', async (req, res)=> {
+//     const { api_key } = req.query;
+//     const { user_id, report_id } = req.params;
+
+//     const key = await Key.find({ 'apiKey': api_key });
+
+//     if( !key || key.length < 1 ){
+//         res.status(401).send('The numbers mason, what do they mean?!');
+//         return;
+//     }
+
+//     const { user_id, month, year, production, consumption,} = req.body;
+//     // let [ month, year ] = date.split('-');
+//     // month = month.parseInt();
+//     // year = year.parseInt();
+
+//     const prevEntry = await PowerMonth.deleteOne({ user_id, month, year });
+//     console.log(prevEntry)
+//     // TODO delete if exists
+
+//     const powerMonth = new PowerMonth({ user_id, month, year, production, consumption });
+
+//     try {
+//         await powerMonth.save();
+//     } catch (e){
+//         console.log(e)
+//         res.send(401).send('Error in data insertion');
+//     }
+//     res.status(200).send('Data saved from webhook');
+// });

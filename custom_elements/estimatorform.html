@@ -1,0 +1,51 @@
+<!-- Need to pull user ID from php, API key can be inline if we fix CORS -->
+<!-- Label as SOLAR ESTIMATOR -->
+<xf:if is="$xf.visitor.user_id">
+	<p>Considering getting Solar Panels? Enter in your specifications to get an AI-generated estimation of your output.</p>
+    <p>Don't know an answer to a field? Don't worry, we'll give you a range.</p>
+    <p>Have "I don't know" options for drop downs</p>
+    <p>Todo: Build a dashboard that takes output data and displays it, save to DB and like DILF save via timestamp</p>
+    <p>Todo: Button to swap from input form to report results</p>
+    <form onsubmit="alert('Data Submitted')" action="https://solar-benchmark-api.onrender.com/solar-estimator?api_key=rcPtcJimLmGFhVVqwrmZYkSMGhRJRFpH3EbBqt4Knyu3hAFzfM" method="post" class="form-example" id="solar-upload-form" target="dummyframe">
+        <input type="hidden" name="user_id" value="{{ $xf.visitor.user_id }}">
+        <div class="form-example">
+            <input type="number" id="exposure" name="exposure" min="1" max="12" value="1"/>
+            <label for="exposure">Roof Exposure</label>
+        </div>
+        <div class="form-example">
+            <input type="number" id="angle" name="angle" min="2020" max="2040" value="2024"/>
+            <label for="angle">Approx. Roof Angle/Slope</label>
+        </div>
+        <div class="form-example">
+            <input type="production" id="interference" name="interference" required value="0"/>
+            <label for="interference">Percent Sunlight Interference (trees, buildings, % estimate of how much of your roof is shaded)</label>
+        </div>
+        <div class="form-example">
+            <input type="consumption" id="panel_num" name="panel_num" required value="0"/>
+            <label for="panel_num">Desired Number of Solar Panels</label>
+        </div>
+        <div class="form-example">
+            <input type="consumption" id="panel_rating" name="panel_rating" required value="0"/>
+            <label for="panel_rating">Desired Solar Panel Rating</label>
+        </div>
+        <div class="form-example">
+            <input type="consumption" id="panel_rating" name="panel_rating" required value="0"/>
+            <label for="panel_rating">Average Power Consumption (kWh)</label>
+        </div>
+        <div class="form-example">
+            <input type="consumption" id="panel_rating" name="panel_rating" required value="0"/>
+            <label for="panel_rating">The Above Amount is how much power I consume in a (day, month, year)</label>
+        </div>
+        <div class="form-example">
+            <input type="consumption" id="zip" name="zip" required value="0"/>
+            <label for="zip">Zip Code</label>
+        </div>
+        <div class="form-example">
+            <input type="submit" value="submit" id="solar-submit"/>
+        </div>
+    </form>
+<xf:else />
+	<xf:h1>Must Be A Member To Upload Data</xf:h1>
+</xf:if>
+
+<iframe name="dummyframe" id="dummyframe" style="display: none;"></iframe>

@@ -199,6 +199,8 @@ app.post('/solar-estimator', verifyKey, async (req, res)=> {
     }
 });
 
+// TODO add insert into username user_id rel table on month upload
+// Use this to join power and username tables together on Dashboard call
 app.post('/upload-month', verifyKey, async (req, res)=> {
     const { user_id, username, month, year, production, consumption,} = req.body;
     // let [ month, year ] = date.split('-');

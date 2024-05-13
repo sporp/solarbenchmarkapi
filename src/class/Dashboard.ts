@@ -76,7 +76,21 @@ export default class Dashboard {
               $sort: { production: -1 }
             },
             {
+                $lookup: {
+                    from: "users",
+                    localField: "user_id",
+                    foreignField: "user_id",
+                    as: "user"
+                }
+            },
+            {
               $limit: 3
+            },
+            {
+                $unwind: {
+                    path: "$user",
+                    preserveNullAndEmptyArrays: true
+                }
             }
           ]);
           
@@ -91,7 +105,21 @@ export default class Dashboard {
               $sort: { consumption: -1 }
             },
             {
+                $lookup: {
+                    from: "users",
+                    localField: "user_id",
+                    foreignField: "user_id",
+                    as: "user"
+                }
+            },
+            {
               $limit: 3
+            },
+            {
+                $unwind: {
+                    path: "$user",
+                    preserveNullAndEmptyArrays: true
+                }
             }
           ]);
 

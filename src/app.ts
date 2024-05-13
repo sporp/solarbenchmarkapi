@@ -199,10 +199,18 @@ app.post('/solar-estimator', verifyKey, async (req, res)=> {
     }
 });
 
+// TODO add send username on frontend
 // TODO add insert into username user_id rel table on month upload
 // Use this to join power and username tables together on Dashboard call
 app.post('/upload-month', verifyKey, async (req, res)=> {
     const { user_id, username, month, year, production, consumption,} = req.body;
+
+    const usr = await User.find({ user_id });
+    if( !usr || usr.length < 1 ){
+        const newUser = new User({user_id, username});
+        await newUser.save();
+    }
+
     // let [ month, year ] = date.split('-');
     // month = month.parseInt();
     // year = year.parseInt();
